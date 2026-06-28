@@ -3,42 +3,30 @@
 #include <string>
 #include <fstream>
 #include <filesystem>
-#include <ciso646>
 #include <vector>
+#include <utility>
 
-#ifdef __linux__
-    #include <unistd.h>
-#endif
+#include <unistd.h>
 
 using namespace std;
 
 enum class System{
-    WSL,
-    Linux,
-    Unsupported };
-enum class WslDistro{
     Ubuntu,
     Debian,
-    Unsupported,
-    IsNotWsl };
+    ArchLinux,
+    Unsupported };
 enum class User{
     Root,
     Other };
 
-auto GetCurrentSystemType(){
-    #pragma warning(suppress : 4996)
-    if (getenv("WSL_DISTRO_NAME") != nullptr){
-        return System::WSL; }
-    #pragma warning(suppress : 4996)
-    if (getenv("WSL_INTEROP") != nullptr){
-        return System::WSL; }
+auto CheckIfRunningInsideWSL(){
     if (filesystem::exists("/proc/version")) {
         ifstream version_file("/proc/version");
         string version_info = "";
         getline(version_file, version_info);
         if (version_info.find("Microsoft") != string::npos or 
         version_info.find("WSL") != string::npos) {
-            return System::WSL; }
+            return true; }
         version_file.close(); }
     if (filesystem::exists("/proc/sys/kernel/osrelease")) {
         ifstream osrelease_file("/proc/sys/kernel/osrelease");
@@ -46,29 +34,11 @@ auto GetCurrentSystemType(){
         getline(osrelease_file, osrelease_info);
         if (osrelease_info.find("microsoft") != string::npos or
             osrelease_info.find("WSL") != string::npos) {
-            return System::WSL; }
+            return true; }
         osrelease_file.close(); }
-
-    #ifdef __linux__
-        return System::Linux;
-    #endif
-    return System::Unsupported; }
-
-auto GetCurrentWslDistro(){
-    #pragma warning(suppress : 4996)
-    if (getenv("WSL_DISTRO_NAME") != nullptr){
-        string DistroName = getenv("WSL_DISTRO_NAME");
-        if (DistroName.find("Ubuntu") != string::npos){
-            return WslDistro::Ubuntu; }
-        else if (DistroName.find("Debian") != string::npos){
-            return WslDistro::Debian; }
-        else{
-            return WslDistro::Unsupported; } }
-    else{
-        return WslDistro::IsNotWsl; } }
+    return false; }
 
 auto GetCurrentUser(){
-    #pragma warning(suppress : 4996)
     if (getenv("USER") != nullptr){
         string user = getenv("USER");
         if (user == "root" or geteuid() == 0){
@@ -91,9 +61,19 @@ auto GetCurrentSystem() {
                 distro_name = line.substr(line.find("=") + 1);
                 distro_name.erase(0, 1); // remove opening quote
                 distro_name.erase(distro_name.size() - 1); // remove closing quote
-                break;} }
+                break; } }
         release_file.close(); }
-    return distro_name; }
+
+    if(distro_name.find("Ubuntu") != string::npos){
+        return pair(System::Ubuntu, distro_name); }
+    else if(distro_name.find("Debian") != string::npos or
+            distro_name.find("Armbian") != string::npos){
+        return pair(System::Debian, distro_name); }
+    else if(distro_name.find("Arch Linux") != string::npos or
+            distro_name.find("CachyOS") != string::npos){
+        return pair(System::ArchLinux, distro_name); }
+    else{
+        return pair(System::Unsupported, distro_name); } }
 
 auto check() {
     cout << "请输入您的选项（输入y或者yes继续）";
@@ -105,10 +85,6 @@ auto check() {
         cout << "输入不正确欸，如果想停止本程序的话请按下Ctrl+C" << endl;
         check(); } }
 
-auto RebootIfIsWSL(){
-    if (GetCurrentSystemType() == System::WSL){
-        system("wsl.exe --terminate $WSL_DISTRO_NAME"); } }
-
 auto Ubuntu(){
     cout << "即将开始安装并配置简体中文语言包，请输入y或者yes继续，或者按Ctrl+C终止本程序";
     check();
@@ -116,12 +92,7 @@ auto Ubuntu(){
     system("apt update");
     system("apt install -y language-pack-zh-hans");
     system("update-locale LANG=zh_CN.UTF-8");
-    cout << "语言配置更新完成" << endl;
-    cout << "即将重启以应用语言设置，请保存您未完成的工作以防数据丢失" << endl;
-    cout << "输入y或者yes重启或者按Ctrl+C终止本程序" << endl;
-    check();
-    RebootIfIsWSL();
-    system("reboot"); }
+    cout << "配置完成，更改将在您下一次登录Shell时应用" << endl; }
 
 auto Debian(){
     cout << "即将开始更新语言配置，请输入y或者yes继续，或者按Ctrl+C终止本程序";
@@ -139,55 +110,43 @@ auto Debian(){
             goto skip_write; } }
     locale_gen.clear();
     locale_gen.seekp(0, ios::end);
-    locale_gen << '\n' <<
-        "zh_CN.UTF-8 UTF-8" << endl;
+    locale_gen << '\n' << "zh_CN.UTF-8 UTF-8" << endl;
 skip_write:
     locale_gen.close();
     system("locale-gen");
     system("update-locale LANG=zh_CN.UTF-8");
-    cout << "即将重启以应用语言设置，请保存您未完成的工作以防数据丢失" << endl;
-    cout << "输入y或者yes重启或者按Ctrl+C终止本程序" << endl;
-    check();
-    RebootIfIsWSL();
-    system("reboot"); }
+    cout << "配置完成，更改将在您下一次登录Shell时应用" << endl; }
 
-auto OsType = GetCurrentSystemType();
+auto ArchLinux(){
+    // https://wiki.archlinuxcn.org/wiki/Locale
+    cout << "即将开始更新语言配置，请输入y或者yes继续，或者按Ctrl+C终止本程序";
+    check();
+    cout << "开始更新语言配置" << endl;
+    system("localectl set-locale LANG=zh_CN.UTF-8");
+    if (CheckIfRunningInsideWSL() == true){
+        // https://wiki.archlinuxcn.org/wiki/%E5%9C%A8_WSL_%E4%B8%8A%E5%AE%89%E8%A3%85_Arch_Linux#%E4%BF%AE%E6%94%B9%E5%8C%BA%E5%9F%9F%E8%AE%BE%E7%BD%AE
+        cout << "检测到您正在WSL中运行Arch Linux，正在创建 /etc/locale.conf -> /etc/default/locale 符号链接" << endl;
+        filesystem::create_symlink("/etc/locale.conf", "/etc/default/locale"); }
+    cout << "配置完成，更改将在您下一次登录Shell时应用" << endl; }
+
+auto ThrowUnsupportedSystemError(){
+    cout << "错误：未知操作系统" << endl
+        << "当前仅适配了Ubuntu，Debian和Arch Linux" << endl
+        << "强行使用可能会造成不可预知的问题" << endl
+        << "为避免出现故障，程序会强制退出" << endl
+        << "如果是误报，请在GitHub仓库打开一个新的issue。" << endl;
+    throw runtime_error("不支持的操作系统"); }
 
 int main() {
-    if (OsType == System::Unsupported){
-        cout << "未知操作系统，为确保数据安全将会强制退出。"
-            << endl 
-            << "如果是误报，请联系作者修复问题。"
-            << endl;
-        throw runtime_error("不支持的操作系统"); }
+    auto OsType = GetCurrentSystem();
+    if (OsType.first == System::Unsupported){
+        ThrowUnsupportedSystemError(); }
 
-    auto OS = GetCurrentSystem();
-    auto Distro = GetCurrentWslDistro();
-    auto CurrentUser = GetCurrentUser();
-
-    if (CurrentUser == User::Other){
+    if (GetCurrentUser() == User::Other){
         cout << "更改语言文件需要root权限，请使用sudo重新运行本程序" << endl;
         throw runtime_error("权限不足"); }
 
-    if (OsType == System::WSL) {
-        cout << "检测到您使用的系统为：" << OS << endl;
-        cout << "并且该系统工作于WSL环境" << endl;
-        if (Distro == WslDistro::IsNotWsl){
-            throw runtime_error("无法获取WSL发行版信息"); }
-
-        if (Distro == WslDistro::Ubuntu){ Ubuntu(); }
-        else if (Distro == WslDistro::Debian){ Debian(); }
-        else{
-            cout << endl
-                << "错误：当前仅适配了Ubuntu和Debian" << endl
-                << "强行使用可能会造成不可预知的问题" << endl
-                << "为避免出现故障，程序会强制退出" << endl;
-            throw runtime_error("不支持的发行版"); } }
-
-    else if (OsType == System::Linux) {
-        cout << "检测到您使用的系统为：" << OS << endl;
-        if (OS.find("Ubuntu") != string::npos){
-            Ubuntu(); }
-        if (OS.find("Debian") != string::npos or
-            OS.find("Armbian") != string::npos){
-            Debian(); } } }
+    cout << "检测到您使用的系统为：" << OsType.second << endl;
+    if (OsType.first == System::Ubuntu){ Ubuntu(); }
+    if (OsType.first == System::Debian){ Debian(); }
+    if (OsType.first == System::ArchLinux){ ArchLinux(); } }
