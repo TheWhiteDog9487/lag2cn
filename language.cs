@@ -15,16 +15,15 @@ using System.Text;
 [DllImport("libc", EntryPoint = "geteuid")]
 static extern uint GetEffectiveUserId();
 
-bool CheckUser(string DisplayMessage = "即将开始更新语言配置"){
-    if (DisplayMessage != null){
-        Console.WriteLine(DisplayMessage); }
+void CheckUser(string DisplayMessage = "即将开始更新语言配置"){
+    Console.WriteLine(DisplayMessage);
     Console.WriteLine("按回车继续，按Esc取消");
     while (true){
         var KeyInfo = Console.ReadKey(true);
         if (KeyInfo.Key == ConsoleKey.Enter){
-            return true; }
+            return; }
         else if (KeyInfo.Key == ConsoleKey.Escape){
-            return false; } } }
+            Environment.Exit(0); } } }
 
 bool IsRunningInsideWSL(){
     string VersionFile = File.ReadAllText("/proc/version");
@@ -35,7 +34,7 @@ bool IsRunningInsideWSL(){
         return true; }
     return false; }
 
-bool ExecuteCommand(string Command, 
+void ExecuteCommand(string Command, 
                     List<string>? Arguments = null,
                     Action<int, string, string?>? WhenErrorThrown = null){
     List<string> StandardError = [];
@@ -53,32 +52,30 @@ bool ExecuteCommand(string Command,
                 Console.WriteLine(Event.Data);
                 StandardError.Add(Event.Data + "\n"); } };
         Process.Start();
-        Process.BeginOutputReadLine();
         Process.BeginErrorReadLine();
         Process.WaitForExit();
         ExitCode = Process.ExitCode;
         if (ExitCode != 0){
-            WhenErrorThrown?.Invoke(ExitCode, string.Join("\n", StandardError), null);
-            return false; }
-        return true; }
+            throw new Exception($"命令执行失败，退出代码: {ExitCode}"); } }
     catch (Exception ExceptionInstance){
         WhenErrorThrown ??= (ExitCode, StandardError, ExceptionMessage) => {
             Console.WriteLine(@$"
             命令执行失败
             退出代码: {ExitCode}
             stderr: {StandardError}
-            异常信息: {ExceptionMessage}"); };
+            异常信息: {ExceptionMessage ?? ""}"); };
         WhenErrorThrown(ExitCode, string.Join("\n", StandardError), ExceptionInstance.Message);
-        return false; } }
+        throw; } }
+
 string OsDescription = RuntimeInformation.OSDescription;
 if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out var CurrentSystem) == false){
     if (OsDescription.Contains("Arch Linux")){
         CurrentSystem = SupportedLinuxDistributions.ArchLinux; }
     else{
-        string CurrentSuppoetedLinuxDistributions = string.Join(", ", Enum.GetNames<SupportedLinuxDistributions>());
+        string CurrentSupportedLinuxDistributions = string.Join(", ", Enum.GetNames<SupportedLinuxDistributions>());
         string Message = @$"
             当前系统为 {OsDescription}
-            当前仅支持 {CurrentSuppoetedLinuxDistributions}
+            当前仅支持 {CurrentSupportedLinuxDistributions}
             强行使用可能会造成不可预知的问题
             为避免出现故障，程序会强制退出
             如果是误报，请在GitHub仓库打开一个新的issue。
@@ -92,20 +89,26 @@ switch (CurrentSystem){
     case SupportedLinuxDistributions.Debian or SupportedLinuxDistributions.Armbian: {
         CheckUser();
         Console.WriteLine("正在检查语言配置");
-            using var FileStream = new FileStream("/etc/locale.gen", FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            var NewContent = File.ReadLines("/etc/locale.gen")
+        string[] NewContent = [];
+        using var FileStream = new FileStream("/etc/locale.gen", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        using (var StreamReader = new StreamReader(FileStream, Encoding.UTF8, true, 1024, true)){
+            NewContent = [.. StreamReader.ReadToEnd()
+            .Split("\n")
             .Select(Line => Line.Trim())
             .Select(Line => {
                 if (Line.Contains("zh_CN.UTF-8 UTF-8")){
                     Line = "zh_CN.UTF-8 UTF-8"; }
-                return Line; } )
-            .ToArray();
-            FileStream.SetLength(0);
-            FileStream.Seek(0, SeekOrigin.Begin);
-            using var StreamWriter = new StreamWriter(FileStream, Encoding.UTF8);
+                return Line; } ) ]; }
+        FileStream.SetLength(0);
+        FileStream.Seek(0, SeekOrigin.Begin);
+        using (var StreamWriter = new StreamWriter(FileStream, Encoding.UTF8)){
             foreach (var Line in NewContent){
-                StreamWriter.WriteLine(Line); }
-            break; }
+                StreamWriter.WriteLine(Line); } }
+        Console.WriteLine("正在生成语言配置");
+        ExecuteCommand("locale-gen");
+        Console.WriteLine("正在更新语言配置");
+        ExecuteCommand("update-locale", ["LANG=zh_CN.UTF-8"]);
+        break; }
     case SupportedLinuxDistributions.Ubuntu: {
         CheckUser("即将开始安装中文语言包");
         Console.WriteLine("正在更新apt软件包源");
@@ -115,15 +118,17 @@ switch (CurrentSystem){
         Console.WriteLine("正在更新语言配置");
         ExecuteCommand("update-locale", ["LANG=zh_CN.UTF-8"]);
         break; }
-    case SupportedLinuxDistributions.ArchLinux: {
+    case SupportedLinuxDistributions.ArchLinux or SupportedLinuxDistributions.CachyOS: {
         CheckUser();
         Console.WriteLine("开始更新语言配置");
         ExecuteCommand("localectl", ["set-locale", "LANG=zh_CN.UTF-8"]);
         if (IsRunningInsideWSL()){
-                // https://wiki.archlinuxcn.org/wiki/%E5%9C%A8_WSL_%E4%B8%8A%E5%AE%89%E8%A3%85_Arch_Linux#%E4%BF%AE%E6%94%B9%E5%8C%BA%E5%9F%9F%E8%AE%BE%E7%BD%AE
-                Console.WriteLine("检测到您正在WSL中运行Arch Linux，正在创建 /etc/locale.conf -> /etc/default/locale 符号链接");
-                File.CreateSymbolicLink("/etc/locale.conf", "/etc/default/locale"); }
-            break; } }
+            // https://wiki.archlinuxcn.org/wiki/%E5%9C%A8_WSL_%E4%B8%8A%E5%AE%89%E8%A3%85_Arch_Linux#%E4%BF%AE%E6%94%B9%E5%8C%BA%E5%9F%9F%E8%AE%BE%E7%BD%AE
+            Console.WriteLine("检测到您正在WSL中运行Arch Linux，正在创建 /etc/locale.conf -> /etc/default/locale 符号链接");
+            if (File.Exists("/etc/default/locale")){
+                File.Move("/etc/default/locale", "/etc/default/locale.bak", true); }
+            File.CreateSymbolicLink("/etc/default/locale", "/etc/locale.conf"); }
+        break; } }
 Console.WriteLine("配置完成，更改将在您下一次登录Shell时生效，按任意键退出");
 Console.ReadKey(true);
 
