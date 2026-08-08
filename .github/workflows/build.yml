@@ -1,40 +1,40 @@
 name: 构建二进制可执行文件
 
 on:
+  pull_request: 
+    paths:
+      - "language.cs"
+      # 只在源代码被更新时运行
   workflow_dispatch:
   push:
     paths:
-      - "language.cpp"
-      # 只在源代码被更新时运行
-
+      - "language.cs"
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    container: alpine:latest
     strategy:
       matrix:
         include:
-          - target: x86_64-linux-musl
+          - runner: ubuntu-latest
             artifact: language
-          - target: aarch64-linux-musl
+          - runner: ubuntu-26.04-arm
             artifact: language_arm
     steps:
-      - uses: actions/checkout@v6
-      - name: 下载 musl 工具链
-        uses: lmq8267/dl-musl@main
-        with:
-          target: ${{ matrix.target }}
-          static: true
+      - uses: actions/checkout@v7
+      - name: 安装依赖项
+        run: |
+          apk update
+          apk add build-base dotnet10-sdk clang
 
       - name: 编译
-        run: |
-          if [ "${{ matrix.target }}" = "x86_64-linux-musl" ]; then
-            "$CXX" -o "${{ matrix.artifact }}" -std=c++23 -s --static language.cpp
-          else
-            "$CXX" -o "${{ matrix.artifact }}" -std=c++23 -s --static language.cpp
-          fi
-
-      - uses: actions/upload-artifact@v5
+        run: 
+          dotnet publish language.cs
+      - name: 重命名
+        if: ${{ matrix.runner == 'ubuntu-26.04-arm' }}
+        run: mv artifacts/language/language artifacts/language/language_arm
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
