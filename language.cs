@@ -67,21 +67,24 @@ bool ExecuteCommand(string Command,
             异常信息: {ExceptionMessage}"); };
         WhenErrorThrown(ExitCode, string.Join("\n", StandardError), ExceptionInstance.Message);
         return false; } }
-
-if (Enum.TryParse<SupportedLinuxDistributions>(RuntimeInformation.OSDescription, out var CurrentSystem) == false){
-    string CurrentSuppoetedLinuxDistributions = string.Join(", ", Enum.GetNames<SupportedLinuxDistributions>());
-    string Message = @$"
-        当前系统为 {RuntimeInformation.OSDescription}
-        当前仅支持 {CurrentSuppoetedLinuxDistributions}
-        强行使用可能会造成不可预知的问题
-        为避免出现故障，程序会强制退出
-        如果是误报，请在GitHub仓库打开一个新的issue。
-    ".Trim();
-    throw new NotSupportedException(Message); }
+string OsDescription = RuntimeInformation.OSDescription;
+if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out var CurrentSystem) == false){
+    if (OsDescription.Contains("Arch Linux")){
+        CurrentSystem = SupportedLinuxDistributions.ArchLinux; }
+    else{
+        string CurrentSuppoetedLinuxDistributions = string.Join(", ", Enum.GetNames<SupportedLinuxDistributions>());
+        string Message = @$"
+            当前系统为 {OsDescription}
+            当前仅支持 {CurrentSuppoetedLinuxDistributions}
+            强行使用可能会造成不可预知的问题
+            为避免出现故障，程序会强制退出
+            如果是误报，请在GitHub仓库打开一个新的issue。
+        ".Trim();
+        throw new NotSupportedException(Message); } }
 if (GetEffectiveUserId() != 0){
     throw new UnauthorizedAccessException("更改语言文件需要root权限，请使用sudo重新运行本程序"); }
 
-Console.WriteLine($"探测到当前系统为 {RuntimeInformation.OSDescription}");
+Console.WriteLine($"探测到当前系统为 {OsDescription}");
 switch (CurrentSystem){
     case SupportedLinuxDistributions.Debian or SupportedLinuxDistributions.Armbian: {
         CheckUser();
