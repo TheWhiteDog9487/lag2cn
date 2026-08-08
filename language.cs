@@ -2,7 +2,7 @@
 #:property StaticExecutable=true
 #:property OptimizationPreference=Speed
 // #:property OptimizationPreference=Size
-// #:property InvariantGlobalization=true
+#:property InvariantGlobalization=true
 // #:property StackTraceSupport=false
 
 using System.Diagnostics;
