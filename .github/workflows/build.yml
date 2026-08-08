@@ -1,11 +1,11 @@
 name: 构建二进制可执行文件
 
 on:
+  workflow_dispatch: 
   pull_request: 
     paths:
       - "language.cs"
       # 只在源代码被更新时运行
-  workflow_dispatch:
   push:
     paths:
       - "language.cs"
@@ -13,8 +13,8 @@ jobs:
 
   build:
     runs-on: ${{ matrix.runner }}
-    container: alpine:latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: ubuntu-latest
@@ -23,18 +23,20 @@ jobs:
             artifact: language_arm
     steps:
       - uses: actions/checkout@v7
-      - name: 安装依赖项
-        run: |
-          apk update
-          apk add build-base dotnet10-sdk clang
 
       - name: 编译
-        run: 
-          dotnet publish language.cs
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}":/src \
+            -w /src \
+            alpine:latest /bin/sh -c '
+              apk update
+              apk add build-base dotnet10-sdk clang
+              dotnet publish language.cs '          
       - name: 重命名
         if: ${{ matrix.runner == 'ubuntu-26.04-arm' }}
-        run: mv artifacts/language/language artifacts/language/language_arm
+        run: sudo mv artifacts/language/language artifacts/language/language_arm
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          path: artifacts/language/${{ matrix.artifact }}
