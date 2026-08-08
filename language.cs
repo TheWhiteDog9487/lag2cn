@@ -1,3 +1,6 @@
+#!/usr/bin/env -S dotnet --
+// https://learn.microsoft.com/zh-cn/dotnet/core/sdk/file-based-apps
+
 #:property PublishAot=true
 #:property StaticExecutable=true
 #:property OptimizationPreference=Speed
@@ -128,4 +131,5 @@ enum SupportedLinuxDistributions {
     Debian,
     Armbian,
     Ubuntu,
-    ArchLinux }
+    ArchLinux,
+    CachyOS }
