@@ -79,8 +79,16 @@ if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out 
             如果是误报，请在GitHub仓库打开一个新的issue。
         ".Trim();
         throw new NotSupportedException(Message); } }
-if (Environment.IsPrivilegedProcess == false){
-    throw new UnauthorizedAccessException("更改语言文件需要root权限，请使用sudo重新运行本程序"); }
+if (Environment.IsPrivilegedProcess == false) {
+    using var Process = new Process();
+    Process.StartInfo.FileName = "sudo";
+    Process.StartInfo.ArgumentList.Add(Environment.ProcessPath ?? throw new Exception("无法获取当前程序路径"));
+    Console.WriteLine("更改语言文件需要root权限，当前用户权限不足");
+    Console.WriteLine("正在尝试使用sudo重新运行程序");
+    Console.WriteLine("如果您当前登录的用户拥有密码，请在sudo提示符中输入密码");
+    Process.Start();
+    Process.WaitForExit();
+    Environment.Exit(Process.ExitCode); }
 
 Console.WriteLine($"探测到当前系统为 {OsDescription}");
 switch (CurrentSystem){

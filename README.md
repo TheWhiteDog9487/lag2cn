@@ -3,6 +3,7 @@
 
 ## 支持的系统
 - Debian
+- Armbian
 - Ubuntu
 - Arch Linux
 - CachyOS
@@ -44,25 +45,27 @@ rm language_arm
 故此，如果您在使用过程中遇到问题，请在GitHub仓库打开一个新的issue，我会尽力处理
 
 ## 如果你想自行编译
-最低依赖项：
-- .NET 10 SDK
-- 任意C++编译器
-
-推荐依赖项：
-- Alpine Linux
+所需依赖项：
 - .NET 10 SDK
 - Clang
-- build-base
+- build-base或其他等效工具集
 
-推荐使用AlpineLinux进行编译，因为Alpine的系统libc就是musl，编译出的产物可以直接用而不需要管目标系统glibc的版本问题  
+推荐使用Alpine Linux进行编译，因为Alpine的系统libc就是musl，编译出的产物可以直接用而不需要管目标系统glibc的版本问题  
 您可以使用下面的Docker命令获得一个Alpine环境
 ```shell
 docker run --rm -it -v .:/src -w /src alpine
 ```
+如果您位于中国大陆境内，推荐先对apk进行换源，以加速软件包下载
+```shell
+# https://help.mirrors.cernet.edu.cn/alpine/
+printf '%s' 'https://mirrors.cernet.edu.cn/alpine/latest-stable/main
+https://mirrors.cernet.edu.cn/alpine/latest-stable/community
+' | tee /etc/apk/repositories
+```
 安装依赖项
 ```shell
 apk update
-apk add clang build-base dotnet10-sdk
+apk add --no-cache clang build-base dotnet10-sdk
 ```
 然后进行编译
 ```shell

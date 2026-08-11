@@ -32,7 +32,7 @@ jobs:
             alpine:latest /bin/sh -c '
               apk update
               apk add build-base dotnet10-sdk clang
-              dotnet publish language.cs '          
+              dotnet publish language.cs /t:Rebuild --disable-build-servers --force '          
       - name: 重命名
         if: ${{ matrix.runner == 'ubuntu-26.04-arm' }}
         run: sudo mv artifacts/language/language artifacts/language/language_arm
