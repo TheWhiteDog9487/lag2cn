@@ -6,14 +6,12 @@
 #:property OptimizationPreference=Speed
 // #:property OptimizationPreference=Size
 #:property InvariantGlobalization=true
+// ↑ 这个东西需要libicu
 // #:property StackTraceSupport=false
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-
-[DllImport("libc", EntryPoint = "geteuid")]
-static extern uint GetEffectiveUserId();
 
 void CheckUser(string DisplayMessage = "即将开始更新语言配置"){
     Console.WriteLine(DisplayMessage);
@@ -81,7 +79,7 @@ if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out 
             如果是误报，请在GitHub仓库打开一个新的issue。
         ".Trim();
         throw new NotSupportedException(Message); } }
-if (GetEffectiveUserId() != 0){
+if (Environment.IsPrivilegedProcess == false){
     throw new UnauthorizedAccessException("更改语言文件需要root权限，请使用sudo重新运行本程序"); }
 
 Console.WriteLine($"探测到当前系统为 {OsDescription}");
