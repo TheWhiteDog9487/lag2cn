@@ -7,6 +7,8 @@
 - Ubuntu
 - Arch Linux
 - CachyOS
+- Rocky Linux
+- AlmaLinux
 
 ## 测试通过的系统
 ### **x86_64：**
@@ -15,6 +17,8 @@
 | Debian | 13.2 <br/> 11.6 |
 | Ubuntu | 26.04 LTS <br/> 25.10 <br/> 25.04 <br/> 24.10 <br/> 24.04.1 LTS <br/> 22.04 LTS <br/> 20.04 LTS |
 | Arch Linux | 滚动发行 |
+| Rocky Linux | 10.2 |
+| AlmaLinux | 10.2 |
 
 ### **aarch64：**
 | 系统名称 | 版本 |
@@ -50,7 +54,7 @@ rm language_arm
 - Clang
 - build-base或其他等效工具集
 
-推荐使用Alpine Linux进行编译，因为Alpine的系统libc就是musl，编译出的产物可以直接用而不需要管目标系统glibc的版本问题  
+推荐使用Alpine Linux进行编译，因为Alpine的系统libc就是musl，静态链接之后的体积会比glibc小一些  
 您可以使用下面的Docker命令获得一个Alpine环境
 ```shell
 docker run --rm -it -v .:/src -w /src alpine

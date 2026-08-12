@@ -69,6 +69,8 @@ string OsDescription = RuntimeInformation.OSDescription;
 if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out var CurrentSystem) == false){
     if (OsDescription.Contains("Arch Linux")){
         CurrentSystem = SupportedLinuxDistributions.ArchLinux; }
+    else if (OsDescription.Contains("Rocky Linux")){
+        CurrentSystem = SupportedLinuxDistributions.RockyLinux; }
     else{
         string CurrentSupportedLinuxDistributions = string.Join(", ", Enum.GetNames<SupportedLinuxDistributions>());
         string Message = @$"
@@ -134,6 +136,24 @@ switch (CurrentSystem){
             if (File.Exists("/etc/default/locale")){
                 File.Move("/etc/default/locale", "/etc/default/locale.bak", true); }
             File.CreateSymbolicLink("/etc/default/locale", "/etc/locale.conf"); }
+        break; }
+    case SupportedLinuxDistributions.RockyLinux or SupportedLinuxDistributions.AlmaLinux: {
+        CheckUser("即将开始安装中文语言包");
+        Console.WriteLine("开始更新语言配置");
+        Console.WriteLine("正在安装中文语言包");
+        ExecuteCommand("dnf", ["install", "-y", "--nogpgcheck", "glibc-langpack-zh", "langpacks-zh_CN"]);
+        Console.WriteLine("正在更新语言配置");
+        ExecuteCommand("localectl", ["set-locale", "LANG=zh_CN.UTF-8"]);
+        
+        if (IsRunningInsideWSL() && CurrentSystem == SupportedLinuxDistributions.AlmaLinux) {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine();
+            Console.WriteLine("警告：检测到您正在WSL内使用AlmaLinux");
+            Console.WriteLine("目前已知AlmaLinux在WSL镜像可能存在一些问题");
+            Console.WriteLine("如果您遇到了诸如 dnf nano 等软件的显示仍然为英文的问题");
+            Console.WriteLine("请尝试使用dnf重新安装或升级出现问题的软件包，或者直接完整更新系统内所有软件包，这应当可以解决问题");
+            Console.WriteLine();
+            Console.ResetColor(); }
         break; } }
 Console.WriteLine("配置完成，更改将在您下一次登录Shell时生效，按任意键退出");
 Console.ReadKey(true);
@@ -143,4 +163,6 @@ enum SupportedLinuxDistributions {
     Armbian,
     Ubuntu,
     ArchLinux,
-    CachyOS }
+    CachyOS,
+    RockyLinux,
+    AlmaLinux }
