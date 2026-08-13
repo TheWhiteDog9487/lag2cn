@@ -146,7 +146,7 @@ switch (CurrentSystem){
         ExecuteCommand("localectl", ["set-locale", "LANG=zh_CN.UTF-8"]);
         
         if (IsRunningInsideWSL() && CurrentSystem == SupportedLinuxDistributions.AlmaLinux) {
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine();
             Console.WriteLine("警告：检测到您正在WSL内使用AlmaLinux");
             Console.WriteLine("目前已知AlmaLinux的WSL镜像可能存在一些问题");
@@ -157,7 +157,7 @@ switch (CurrentSystem){
         break; }
     default: {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"您当前使用的操作系统 {OsDescription} ,匹配名称 {CurrentSystem} 受到支持，但是lag2cn没有为其配置执行逻辑");
+        Console.WriteLine($"错误：您当前使用的操作系统 {OsDescription} ,匹配名称 {CurrentSystem} 受到支持，但是lag2cn没有为其配置执行逻辑");
         Console.WriteLine("这是一个程序Bug，请前往Github仓库开启一个issue，并提供当前输出日志");
         Console.ResetColor();
         throw new InvalidOperationException("遗漏的switch匹配"); } }
