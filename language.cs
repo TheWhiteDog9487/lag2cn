@@ -137,7 +137,7 @@ switch (CurrentSystem){
                 File.Move("/etc/default/locale", "/etc/default/locale.bak", true); }
             File.CreateSymbolicLink("/etc/default/locale", "/etc/locale.conf"); }
         break; }
-    case SupportedLinuxDistributions.RockyLinux or SupportedLinuxDistributions.AlmaLinux: {
+    case SupportedLinuxDistributions.RockyLinux or SupportedLinuxDistributions.AlmaLinux or SupportedLinuxDistributions.Fedora: {
         CheckUser("即将开始安装中文语言包");
         Console.WriteLine("开始更新语言配置");
         Console.WriteLine("正在安装中文语言包");
@@ -149,12 +149,19 @@ switch (CurrentSystem){
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine();
             Console.WriteLine("警告：检测到您正在WSL内使用AlmaLinux");
-            Console.WriteLine("目前已知AlmaLinux在WSL镜像可能存在一些问题");
+            Console.WriteLine("目前已知AlmaLinux的WSL镜像可能存在一些问题");
             Console.WriteLine("如果您遇到了诸如 dnf nano 等软件的显示仍然为英文的问题");
             Console.WriteLine("请尝试使用dnf重新安装或升级出现问题的软件包，或者直接完整更新系统内所有软件包，这应当可以解决问题");
             Console.WriteLine();
             Console.ResetColor(); }
-        break; } }
+        break; }
+    default: {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"您当前使用的操作系统 {OsDescription} ,匹配名称 {CurrentSystem} 受到支持，但是lag2cn没有为其配置执行逻辑");
+        Console.WriteLine("这是一个程序Bug，请前往Github仓库开启一个issue，并提供当前输出日志");
+        Console.ResetColor();
+        throw new InvalidOperationException("遗漏的switch匹配"); } }
+
 Console.WriteLine("配置完成，更改将在您下一次登录Shell时生效，按任意键退出");
 Console.ReadKey(true);
 
@@ -165,4 +172,5 @@ enum SupportedLinuxDistributions {
     ArchLinux,
     CachyOS,
     RockyLinux,
-    AlmaLinux }
+    AlmaLinux,
+    Fedora }

@@ -9,6 +9,7 @@
 - CachyOS
 - Rocky Linux
 - AlmaLinux
+- Fedora
 
 ## 测试通过的系统
 ### **x86_64：**
@@ -19,6 +20,7 @@
 | Arch Linux | 滚动发行 |
 | Rocky Linux | 10.2 |
 | AlmaLinux | 10.2 |
+| Fedora | 44 <br/> 40 |
 
 ### **aarch64：**
 | 系统名称 | 版本 |
