@@ -67,6 +67,7 @@ void ExecuteCommand(string Command,
 
 string OsDescription = RuntimeInformation.OSDescription;
 if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out var CurrentSystem) == false){
+    // 对于Arch Linux这种系统名称中间有空格的需要特判
     if (OsDescription.Contains("Arch Linux")){
         CurrentSystem = SupportedLinuxDistributions.ArchLinux; }
     else if (OsDescription.Contains("Rocky Linux")){
@@ -98,8 +99,10 @@ switch (CurrentSystem){
         CheckUser();
         Console.WriteLine("正在检查语言配置");
         string[] NewContent = [];
+        File.Copy("/etc/locale.gen", "/etc/locale.gen.bak", true);
+        Console.WriteLine("原始 /etc/locale.gen 文件已备份为 /etc/locale.gen.bak");
         using var FileStream = new FileStream("/etc/locale.gen", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        using (var StreamReader = new StreamReader(FileStream, Encoding.UTF8, true, 1024, true)){
+        using (var StreamReader = new StreamReader(FileStream, new UTF8Encoding(false), true, 1024, true)){
             NewContent = [.. StreamReader.ReadToEnd()
             .Split("\n")
             .Select(Line => Line.Trim())
@@ -107,9 +110,15 @@ switch (CurrentSystem){
                 if (Line.Contains("zh_CN.UTF-8 UTF-8")){
                     Line = "zh_CN.UTF-8 UTF-8"; }
                 return Line; } ) ]; }
+        if (NewContent.Any(Line => Line.StartsWith("zh_CN.UTF-8 UTF-8")) == false){
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("警告：在 /etc/locale.gen 中未检测到 zh_CN.UTF-8 UTF-8 条目，这种情况较为反常，建议您关注后续的执行结果");
+            Console.WriteLine("如果需要恢复备份，请直接使用 /etc/locale.gen.bak 覆盖 /etc/locale.gen");
+            Console.ResetColor();
+            NewContent = [.. NewContent, "zh_CN.UTF-8 UTF-8"]; }
         FileStream.SetLength(0);
         FileStream.Seek(0, SeekOrigin.Begin);
-        using (var StreamWriter = new StreamWriter(FileStream, Encoding.UTF8)){
+        using (var StreamWriter = new StreamWriter(FileStream, new UTF8Encoding(false), 1024, true)){
             foreach (var Line in NewContent){
                 StreamWriter.WriteLine(Line); } }
         Console.WriteLine("正在生成语言配置");
@@ -141,7 +150,7 @@ switch (CurrentSystem){
         CheckUser("即将开始安装中文语言包");
         Console.WriteLine("开始更新语言配置");
         Console.WriteLine("正在安装中文语言包");
-        ExecuteCommand("dnf", ["install", "-y", "--nogpgcheck", "glibc-langpack-zh", "langpacks-zh_CN"]);
+        ExecuteCommand("dnf", ["install", "-y", "glibc-langpack-zh", "langpacks-zh_CN"]);
         Console.WriteLine("正在更新语言配置");
         ExecuteCommand("localectl", ["set-locale", "LANG=zh_CN.UTF-8"]);
         
