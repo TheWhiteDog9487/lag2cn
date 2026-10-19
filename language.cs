@@ -47,7 +47,7 @@ void ExecuteCommand(string Command,
         Process.StartInfo.RedirectStandardError = true;
         Process.ErrorDataReceived += (_, Event) => {
             if (Event.Data != null){
-                Console.WriteLine(Event.Data);
+                Console.Error.WriteLine(Event.Data);
                 StandardError.Add(Event.Data + "\n"); } };
         Process.Start();
         Process.BeginErrorReadLine();
@@ -57,7 +57,7 @@ void ExecuteCommand(string Command,
             throw new Exception($"命令执行失败，退出代码: {ExitCode}"); } }
     catch (Exception ExceptionInstance){
         WhenErrorThrown ??= (ExitCode, StandardError, ExceptionMessage) => {
-            Console.WriteLine(@$"
+            Console.Error.WriteLine(@$"
             命令执行失败
             退出代码: {ExitCode}
             stderr: {StandardError}
@@ -166,8 +166,8 @@ switch (CurrentSystem){
         break; }
     default: {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"错误：您当前使用的操作系统 {OsDescription} ,匹配名称 {CurrentSystem} 受到支持，但是lag2cn没有为其配置执行逻辑");
-        Console.WriteLine("这是一个程序Bug，请前往Github仓库开启一个issue，并提供当前输出日志");
+        Console.Error.WriteLine($"错误：您当前使用的操作系统 {OsDescription} ,匹配名称 {CurrentSystem} 受到支持，但是lag2cn没有为其配置执行逻辑");
+        Console.Error.WriteLine("这是一个程序Bug，请前往Github仓库开启一个issue，并提供当前输出日志");
         Console.ResetColor();
         throw new InvalidOperationException("遗漏的switch匹配"); } }
 
