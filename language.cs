@@ -14,6 +14,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 void CheckUser(string DisplayMessage = "即将开始更新语言配置"){
+    if (Console.IsInputRedirected == true){
+        return; }
+
     Console.WriteLine(DisplayMessage);
     Console.WriteLine("按回车继续，按Esc取消");
     while (true){
@@ -64,6 +67,12 @@ void ExecuteCommand(string Command,
             异常信息: {ExceptionMessage ?? ""}"); };
         WhenErrorThrown(ExitCode, string.Join("\n", StandardError), ExceptionInstance.Message);
         throw; } }
+
+if (Console.IsInputRedirected == true) {
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("警告：当前处于非交互式模式");
+    Console.WriteLine("所有需要您手动确认的操作都将由本程序代为确认");
+    Console.ResetColor(); }
 
 string OsDescription = RuntimeInformation.OSDescription;
 if (Enum.TryParse<SupportedLinuxDistributions>(OsDescription.Split(' ')[0], out var CurrentSystem) == false){
@@ -171,8 +180,11 @@ switch (CurrentSystem){
         Console.ResetColor();
         throw new InvalidOperationException("遗漏的switch匹配"); } }
 
-Console.WriteLine("配置完成，更改将在您下一次登录Shell时生效，按任意键退出");
-Console.ReadKey(true);
+Console.WriteLine("配置完成，更改将在您下一次登录Shell时生效");
+
+if (Console.IsInputRedirected == false) {
+    Console.WriteLine("按任意键退出");
+    Console.ReadKey(true); }
 
 enum SupportedLinuxDistributions {
     Debian,
