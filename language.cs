@@ -68,6 +68,9 @@ void ExecuteCommand(string Command,
         WhenErrorThrown(ExitCode, string.Join("\n", StandardError), ExceptionInstance.Message);
         throw; } }
 
+var FirstProcessName = File.ReadAllText("/proc/1/comm").Trim();
+var IsUsingSystemd = FirstProcessName == "systemd";
+
 if (Console.IsInputRedirected == true) {
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("警告：当前处于非交互式模式");
@@ -147,7 +150,29 @@ switch (CurrentSystem){
     case SupportedLinuxDistributions.ArchLinux or SupportedLinuxDistributions.CachyOS: {
         CheckUser();
         Console.WriteLine("开始更新语言配置");
-        ExecuteCommand("localectl", ["set-locale", "LANG=zh_CN.UTF-8"]);
+        if (IsUsingSystemd) {
+            ExecuteCommand("localectl", ["set-locale", "zh_CN.UTF-8"]); }
+        else {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("警告：当前系统未使用systemd，无法使用localectl更新语言配置");
+            Console.WriteLine("正在手动设置 /etc/locale.conf");
+            Console.ResetColor();
+            if (File.Exists("/etc/locale.conf")) {
+                File.Copy("/etc/locale.conf", "/etc/locale.conf.bak", true); }
+            File.WriteAllText("/etc/locale.conf", "LANG=zh_CN.UTF-8"); }
+        if (File.ReadAllLines("/etc/locale.gen")
+            .Select(Line => Line.Trim())
+            .Any(Line => Line.StartsWith("zh_CN.UTF-8 UTF-8")) == false){
+                var RawContent = File.ReadAllLines("/etc/locale.gen");
+                var NewContent = RawContent.Select(Line => Line.Trim())
+                    .Select(Line => {
+                        if (Line.Contains("zh_CN.UTF-8 UTF-8")){
+                            Line = "zh_CN.UTF-8 UTF-8"; }
+                        return Line; } )
+                    .ToList();
+                File.Copy("/etc/locale.gen", "/etc/locale.gen.bak", true);
+                File.WriteAllLines("/etc/locale.gen", NewContent);
+                ExecuteCommand("locale-gen"); }
         if (IsRunningInsideWSL()){
             // https://wiki.archlinuxcn.org/wiki/%E5%9C%A8_WSL_%E4%B8%8A%E5%AE%89%E8%A3%85_Arch_Linux#%E4%BF%AE%E6%94%B9%E5%8C%BA%E5%9F%9F%E8%AE%BE%E7%BD%AE
             Console.WriteLine("检测到您正在WSL中运行Arch Linux，正在创建 /etc/locale.conf -> /etc/default/locale 符号链接");
